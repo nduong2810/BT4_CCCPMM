@@ -91,7 +91,6 @@ export const seedProducts = async (req, res) => {
                     "https://images.unsplash.com/photo-1524592094714-0f0654e20314?q=80&w=1999&auto=format&fit=crop"
                 ]
             },
-            // ... bạn có thể copy thêm các sản phẩm mẫu từ câu trước vào đây
         ];
 
         await Product.deleteMany({});
@@ -99,5 +98,58 @@ export const seedProducts = async (req, res) => {
         res.status(201).json({ message: "Seed data thành công!", createdProducts });
     } catch (error) {
         res.status(500).json({ message: "Lỗi seed data", error: error.message });
+    }
+};
+
+export const getProductsLazyLoad = async (req, res) => {
+    try {
+        // Nhận vào category, số trang (page) và số lượng phần tử mỗi lần load (limit)
+        const { category, page = 1, limit = 4 } = req.query;
+
+        let query = {};
+        if (category) {
+            query.category = category;
+        }
+
+        // Tính số lượng bản ghi cần bỏ qua
+        const skipDocs = (Number(page) - 1) * Number(limit);
+
+        // Lấy sản phẩm của trang hiện tại
+        const products = await Product.find(query)
+            .sort({ createdAt: -1 })
+            .skip(skipDocs)
+            .limit(Number(limit));
+
+        // Tính tổng số lượng sản phẩm khớp điều kiện để FE biết khi nào hết dữ liệu
+        const totalProducts = await Product.countDocuments(query);
+        const hasMore = skipDocs + products.length < totalProducts;
+
+        return res.status(200).json({
+            success: true,
+            products,
+            hasMore // Trả về true/false để FE biết có cần load tiếp không
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Lỗi tải phân trang", error: error.message });
+    }
+};
+
+export const getTopHighlights = async (req, res) => {
+    try {
+        // Lấy 10 sản phẩm có số lượng 'sold' lớn nhất
+        const topSold = await Product.find().sort({ sold: -1 }).limit(10);
+
+        // Lấy 10 sản phẩm có số lượng 'views' lớn nhất
+        const topViews = await Product.find().sort({ views: -1 }).limit(10);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                topSold,
+                topViews
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: "Lỗi lấy dữ liệu nổi bật", error: error.message });
     }
 };
