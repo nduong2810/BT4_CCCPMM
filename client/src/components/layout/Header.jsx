@@ -1,16 +1,17 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-//import { logout } from '../../store/slices/authSlice';
+import { resetLoginState } from '../../store/slices/loginSlice'; // Import đúng action reset từ loginSlice của bạn
 
 const Header = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const authState = useSelector((state) => state.auth);
-    const user = authState?.user || null;
+
+    // SỬA TẠI ĐÂY: Thay state.auth thành state.login để lấy đúng dữ liệu đăng nhập hiện tại
+    const { isAuthenticated, user } = useSelector((state) => state.login);
 
     const handleLogout = () => {
-        dispatch(logout());
+        dispatch(resetLoginState());
         navigate('/auth/login');
     };
 
@@ -39,24 +40,37 @@ const Header = () => {
 
                     {/* Icon User & Dropdown Menu */}
                     <div className="relative group flex items-center h-full py-4">
-                        <button aria-label="Profile" className="hover:text-secondary transition-colors duration-500 ease-in-out">
-                            <span className="material-symbols-outlined">person</span>
+                        {/* NÚT TRIGGER: Nếu đã login thành công thì hiện Avatar tròn, chưa login hiện icon person mặc định */}
+                        <button aria-label="Profile" className="hover:text-secondary transition-colors duration-500 ease-in-out flex items-center">
+                            {isAuthenticated && user ? (
+                                <img
+                                    src={user.avatar || "https://www.w3schools.com/howto/img_avatar.png"}
+                                    alt="User Avatar"
+                                    className="w-7 h-7 rounded-full object-cover border border-primary/20 shadow-sm"
+                                />
+                            ) : (
+                                <span className="material-symbols-outlined">person</span>
+                            )}
                         </button>
 
                         {/* Khối Dropdown mượt mà từ thiết kế gốc của bạn */}
                         <div className="absolute top-full right-0 mt-[-10px] w-48 bg-surface-container-lowest shadow-sm rounded border border-surface-variant opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 ease-in-out">
                             <div className="p-4 flex flex-col space-y-3">
-                                {user ? (
+                                {isAuthenticated && user ? (
+                                    /* THÀNH VIÊN ĐÃ ĐĂNG NHẬP: Hiện lời chào, giữ nguyên các tính năng cũ và nút đăng xuất */
                                     <>
-                    <span className="font-label-sm text-label-sm text-primary border-b border-surface-variant pb-2 truncate">
-                      Chào, {user.fullName || 'Thành viên'}
-                    </span>
+                                        <span className="font-label-sm text-label-sm text-primary border-b border-surface-variant pb-2 truncate font-medium">
+                                            Chào, {user.fullName || 'Thành viên'}
+                                        </span>
                                         <Link to="/user/profile" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Tài khoản</Link>
                                         <a href="#" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Đơn hàng</a>
                                         <hr className="border-surface-variant" />
-                                        <button onClick={handleLogout} className="font-label-sm text-label-sm text-error hover:text-error-container transition-colors text-left">Đăng xuất</button>
+                                        <button onClick={handleLogout} className="font-label-sm text-label-sm text-error hover:text-error-container transition-colors text-left font-medium">
+                                            Đăng xuất
+                                        </button>
                                     </>
                                 ) : (
+                                    /* CHƯA ĐĂNG NHẬP: Chỉ hiển thị nút Đăng nhập và Đăng ký */
                                     <>
                                         <Link to="/auth/login" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Đăng nhập</Link>
                                         <Link to="/auth/register" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Đăng ký</Link>

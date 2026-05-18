@@ -1,6 +1,5 @@
 import express from 'express';
-import { getProducts, getProductById, seedProducts } from '../controller/product.controller.js';
-
+import { getProducts, getProductById, seedProducts, getHomeProducts } from '../controller/product.controller.js';
 const router = express.Router();
 
 router.get('/test', (req, res) => {
@@ -9,6 +8,7 @@ router.get('/test', (req, res) => {
 
 // Các route chính
 router.post('/seed', seedProducts);
+router.get('/home-products', getHomeProducts);
 router.get('/', getProducts);
 router.get('/:id', getProductById);
 

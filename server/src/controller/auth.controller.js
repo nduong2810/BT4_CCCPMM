@@ -62,7 +62,7 @@ class AuthController {
             });
 
             // Trả URL redirect theo role
-            const redirectUrl = user.role === 'admin' ? '/admin/profile' : '/user/profile';
+            const redirectUrl = user.role === 'admin' ? '/admin/profile' : '/';
 
             res.status(200).json({
                 message: 'Đăng nhập thành công',

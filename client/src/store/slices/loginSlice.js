@@ -58,7 +58,7 @@ const loginSlice = createSlice({
         state.loading = false;
         state.successMessage = action.payload.message || 'Đăng nhập thành công.';
         state.user = action.payload.user || null;
-        state.redirectUrl = action.payload.redirectUrl || '/user/profile';
+        state.redirectUrl = action.payload.redirectUrl || '/';
         state.isAuthenticated = true;
       })
       .addCase(loginThunk.rejected, (state, action) => {
