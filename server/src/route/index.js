@@ -2,20 +2,19 @@ import express from 'express'
 import authRoutes from './auth.routes.js'
 import userRoutes from './user.routes.js'
 import adminRoutes from './admin.routes.js'
-// ====================================================================
-// ROUTE AGGREGATOR
-// Gom tất cả routes — thêm route modules ở đây
-// ====================================================================
+
+// THAY ĐỔI Ở ĐÂY: Dùng import thay vì require
+import productRoutes from './product.routes.js'
 
 const router = express.Router()
-
-// --- Mount routes ở đây ---
-// Ví dụ: router.use('/auth', authRoute)
-// Ví dụ: router.use('/forum', forumRoute)
 
 router.use('/auth', authRoutes)
 router.use('/user', userRoutes)
 router.use('/admin', adminRoutes)
+
+// THÊM ROUTE PRODUCT
+router.use('/products', productRoutes)
+
 // Health check
 router.get('/health', (req, res) => {
   res.status(200).json({
@@ -25,4 +24,4 @@ router.get('/health', (req, res) => {
   })
 })
 
-export default router
+export default router;
