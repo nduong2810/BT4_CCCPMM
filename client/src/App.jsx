@@ -6,6 +6,8 @@ import AdminProfilePage from './pages/admin/AdminProfilePage';
 import ProfilePage from './pages/profile/ProfilePage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import CartPage from './pages/cart/CartPage';
+import CheckoutPage from './pages/checkout/CheckoutPage';
 
 // Import trang bán hàng
 import HomePage from './pages/home/HomePage';
@@ -33,6 +35,10 @@ function App() {
             {/* 1. KHU VỰC TRANG BÁN HÀNG (Full màn hình, không dùng Shell) */}
             <Route path="/" element={<HomePage />} />
             <Route path="/product/:id" element={<ProductDetailPage />} />
+
+            {/* ---> THÊM ROUTE GIỎ HÀNG VÀ THANH TOÁN TẠI ĐÂY <--- */}
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
 
             {/* 2. KHU VỰC TÀI KHOẢN (Bọc trong khung Shell) */}
             <Route element={<Shell />}>

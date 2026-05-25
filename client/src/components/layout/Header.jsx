@@ -14,6 +14,7 @@ const Header = () => {
         dispatch(resetLoginState());
         navigate('/auth/login');
     };
+    const cartItems = useSelector(state => state.cart.items);
 
     return (
         <nav className="bg-surface/80 backdrop-blur-md shadow-sm fixed top-0 w-full z-50 transition-all duration-300 ease-out">
@@ -80,9 +81,17 @@ const Header = () => {
                         </div>
                     </div>
 
-                    <button aria-label="Cart" className="hover:text-secondary transition-colors duration-500 ease-in-out">
+                    {/* Icon Giỏ Hàng - Đã sửa thành Link để chuyển trang và hiện số lượng */}
+                    <Link to="/cart" aria-label="Cart" className="relative hover:text-secondary transition-colors duration-500 ease-in-out flex items-center">
                         <span className="material-symbols-outlined">shopping_bag</span>
-                    </button>
+
+                        {/* Hiển thị số lượng sản phẩm bằng một chấm đỏ nhỏ nếu giỏ hàng có đồ */}
+                        {cartItems && cartItems.length > 0 && (
+                            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                                {cartItems.length}
+                            </span>
+                        )}
+                    </Link>
 
                     {/* Mobile Menu Toggle */}
                     <button className="md:hidden hover:text-secondary transition-colors duration-500 ease-in-out">

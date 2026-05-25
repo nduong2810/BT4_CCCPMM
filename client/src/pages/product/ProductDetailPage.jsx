@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import apiClient from '../../lib/apiClient';
 import Header from '../../components/layout/Header';
-import Footer from '../../components/layout/Footer'; // Import Footer
+import Footer from '../../components/layout/Footer';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
+
+// Import Redux hooks và action
+import { useDispatch } from 'react-redux';
+import { addToCart } from '../../store/slices/cartSlice';
 
 const ProductDetailPage = () => {
     const { id } = useParams();
@@ -14,8 +18,11 @@ const ProductDetailPage = () => {
     const [related, setRelated] = useState([]);
     const [quantity, setQuantity] = useState(1);
 
+    // 1. Khai báo dispatch
+    const dispatch = useDispatch();
+
     useEffect(() => {
-        window.scrollTo(0, 0); // Scroll lên đầu trang khi vào
+        window.scrollTo(0, 0);
         apiClient.get(`/products/${id}`).then(res => {
             setProduct(res.data);
             apiClient.get(`/products?category=${res.data.category}&exclude=${id}&limit=3`)
@@ -23,11 +30,28 @@ const ProductDetailPage = () => {
         }).catch(err => console.error(err));
     }, [id]);
 
+    // 2. Viết hàm xử lý thêm vào giỏ hàng
+    const handleAddToCart = () => {
+        if (!product) return;
+
+        dispatch(addToCart({
+            productId: product._id, // Lấy ID của sản phẩm hiện tại
+            quantity: quantity,     // Lấy số lượng từ state quantity bạn đang chọn
+            price: product.price
+        }))
+            .unwrap()
+            .then(() => {
+                alert("Đã thêm sản phẩm vào giỏ hàng thành công!");
+            })
+            .catch((error) => {
+                alert("Lỗi khi thêm vào giỏ hàng: " + (error?.message || "Vui lòng đăng nhập"));
+            });
+    };
+
     if (!product) return <div className="text-center pt-32 h-screen flex justify-center items-center">Đang tải dữ liệu...</div>;
 
     return (
         <div className="bg-surface text-on-surface flex flex-col min-h-screen">
-            {/* HEADER */}
             <Header />
 
             <main className="flex-grow pt-32 pb-section-padding px-margin-mobile md:px-margin-desktop max-w-[1280px] mx-auto w-full">
@@ -60,9 +84,9 @@ const ProductDetailPage = () => {
                         <div className="flex items-center gap-4 mb-4">
                             <span className="px-3 py-1 bg-surface-container-high text-on-surface font-label-sm rounded uppercase tracking-widest">{product.category}</span>
                             <span className="font-label-sm text-on-surface-variant flex items-center gap-1">
-                <span className="material-symbols-outlined text-[16px] text-secondary">local_fire_department</span>
-                Đã bán: {product.sold} | Tồn kho: {product.countInStock}
-              </span>
+                                <span className="material-symbols-outlined text-[16px] text-secondary">local_fire_department</span>
+                                Đã bán: {product.sold} | Tồn kho: {product.countInStock}
+                            </span>
                         </div>
 
                         <h1 className="font-display-lg text-[40px] text-primary mb-2 leading-tight">{product.name}</h1>
@@ -79,7 +103,13 @@ const ProductDetailPage = () => {
                                 <span className="w-12 text-center font-body-md">{quantity}</span>
                                 <button onClick={() => setQuantity(q => Math.min(product.countInStock, q + 1))} className="p-3 text-on-surface-variant hover:bg-surface-container transition-colors">+</button>
                             </div>
-                            <button disabled={product.countInStock === 0} className="flex-1 bg-primary text-white py-4 px-8 font-label-sm uppercase tracking-widest hover:bg-primary-container transition-all flex justify-center items-center gap-2 disabled:opacity-50">
+
+                            {/* 3. GẮN SỰ KIỆN onClick VÀO NÚT NÀY */}
+                            <button
+                                onClick={handleAddToCart}
+                                disabled={product.countInStock === 0}
+                                className="flex-1 bg-primary text-white py-4 px-8 font-label-sm uppercase tracking-widest hover:bg-primary-container transition-all flex justify-center items-center gap-2 disabled:opacity-50"
+                            >
                                 <span className="material-symbols-outlined">shopping_bag</span>
                                 {product.countInStock === 0 ? "HẾT HÀNG" : "THÊM VÀO GIỎ"}
                             </button>
@@ -106,7 +136,6 @@ const ProductDetailPage = () => {
                 </section>
             </main>
 
-            {/* FOOTER */}
             <Footer />
         </div>
     );
