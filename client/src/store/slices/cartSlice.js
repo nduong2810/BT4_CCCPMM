@@ -1,99 +1,83 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getCartData, addToCartAPI, updateCartItemAPI, removeCartItemAPI } from '../../services/cartService';
 
-// --- Async Thunks ---
-
+// 1. Khởi tạo các AsyncThunk gọi API
 export const fetchCart = createAsyncThunk('cart/fetchCart', async (_, { rejectWithValue }) => {
     try {
         const response = await getCartData();
         return response.data.cart;
     } catch (error) {
-        return rejectWithValue(error.response?.data || 'Failed to fetch cart');
+        return rejectWithValue(error.response?.data || error.message);
     }
 });
 
-export const addToCart = createAsyncThunk('cart/addToCart', async (data, { dispatch, rejectWithValue }) => {
+export const addToCart = createAsyncThunk('cart/addToCart', async (data, { rejectWithValue }) => {
     try {
-        await addToCartAPI(data);
-        // Sau khi thêm thành công, gọi fetchCart để lấy lại toàn bộ giỏ hàng mới nhất
-        dispatch(fetchCart());
+        const response = await addToCartAPI(data);
+        return response.data.cart;
     } catch (error) {
-        return rejectWithValue(error.response?.data || 'Failed to add to cart');
+        return rejectWithValue(error.response?.data || error.message);
     }
 });
 
-// SỬA LỖI: Thunk để cập nhật số lượng
-export const updateCartItem = createAsyncThunk(
-    'cart/updateItem',
-    async ({ productId, quantity }, { dispatch, rejectWithValue }) => {
-        try {
-            await updateCartItemAPI(productId, quantity);
-            // Sau khi cập nhật thành công, gọi fetchCart để đảm bảo dữ liệu đồng bộ
-            dispatch(fetchCart());
-        } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to update item');
-        }
+export const updateCartItem = createAsyncThunk('cart/updateCartItem', async (data, { rejectWithValue }) => {
+    try {
+        const response = await updateCartItemAPI(data);
+        return response.data.cart;
+    } catch (error) {
+        return rejectWithValue(error.response?.data || error.message);
     }
-);
+});
 
-// SỬA LỖI: Thunk để xóa sản phẩm
-export const removeCartItem = createAsyncThunk(
-    'cart/removeItem',
-    async (productId, { dispatch, rejectWithValue }) => {
-        try {
-            await removeCartItemAPI(productId);
-            // Sau khi xóa thành công, gọi fetchCart để làm mới giỏ hàng
-            dispatch(fetchCart());
-        } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to remove item');
-        }
+export const removeCartItem = createAsyncThunk('cart/removeCartItem', async (productId, { rejectWithValue }) => {
+    try {
+        const response = await removeCartItemAPI(productId);
+        return response.data.cart;
+    } catch (error) {
+        return rejectWithValue(error.response?.data || error.message);
     }
-);
+});
 
-// --- Slice Definition ---
-
+// 2. Khởi tạo Slice
 const cartSlice = createSlice({
     name: 'cart',
     initialState: {
         items: [],
         totalPrice: 0,
-        loading: false,
-        error: null,
+        loading: true // Vừa vào trang là bật loading luôn
     },
     reducers: {},
     extraReducers: (builder) => {
         builder
-            // --- Xử lý các trường hợp cụ thể (addCase) ---
+            // ============ LẤY GIỎ HÀNG (FETCH) ============
             .addCase(fetchCart.pending, (state) => {
-                state.loading = true;
+                state.loading = true; // Đang gọi API -> Quay loading
             })
             .addCase(fetchCart.fulfilled, (state, action) => {
-                state.loading = false;
-                state.items = action.payload.items;
-                state.totalPrice = action.payload.totalPrice;
-                state.error = null;
+                state.loading = false; // Xong rồi -> Tắt loading
+                state.items = action.payload?.items || [];
+                state.totalPrice = action.payload?.totalPrice || 0;
             })
-            .addCase(fetchCart.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload;
+            .addCase(fetchCart.rejected, (state) => {
+                state.loading = false; // Lỗi (vd: chưa đăng nhập) -> Vẫn phải tắt loading
+                state.items = [];
+                state.totalPrice = 0;
             })
-            // Các action update và remove không cần xử lý fulfilled nữa
-            // vì chúng sẽ trigger fetchCart, và logic đã được xử lý ở trên.
-            // Chúng ta chỉ cần xử lý trạng thái loading cho chúng.
-            .addMatcher(
-                (action) => action.type.startsWith('cart/') && action.type.endsWith('/pending'),
-                (state) => {
-                    state.loading = true;
-                }
-            )
-            .addMatcher(
-                (action) => action.type.startsWith('cart/') && action.type.endsWith('/rejected'),
-                (state, action) => {
-                    // Khi có lỗi, dừng loading và fetch lại giỏ hàng để khôi phục trạng thái đúng
-                    state.loading = false;
-                    state.error = action.payload;
-                }
-            );
+
+            // ============ THÊM / SỬA / XÓA ============
+            // (Chỉ cần cập nhật lại giỏ hàng sau khi các hành động này thành công)
+            .addCase(addToCart.fulfilled, (state, action) => {
+                state.items = action.payload?.items || [];
+                state.totalPrice = action.payload?.totalPrice || 0;
+            })
+            .addCase(updateCartItem.fulfilled, (state, action) => {
+                state.items = action.payload?.items || [];
+                state.totalPrice = action.payload?.totalPrice || 0;
+            })
+            .addCase(removeCartItem.fulfilled, (state, action) => {
+                state.items = action.payload?.items || [];
+                state.totalPrice = action.payload?.totalPrice || 0;
+            });
     }
 });
 
