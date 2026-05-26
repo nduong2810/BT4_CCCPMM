@@ -15,15 +15,26 @@ const CartPage = () => {
         window.scrollTo(0, 0); // Tự động cuộn lên đầu trang
     }, [dispatch]);
 
-    const handleQuantityChange = (productId, quantity) => {
+    const handleQuantityChange = async (productId, quantity) => {
         if (quantity > 0) {
-            dispatch(updateCartItem({ productId, quantity }));
+            try {
+                // Thêm unwrap() để bắt lỗi từ Redux Thunk
+                await dispatch(updateCartItem({ productId, quantity })).unwrap();
+            } catch (error) {
+                alert("❌ Lỗi cập nhật số lượng: " + (error.message || error));
+                console.error(error);
+            }
         }
     };
 
-    const handleRemoveItem = (productId) => {
-        if(window.confirm('Bạn có chắc chắn muốn bỏ sản phẩm này khỏi giỏ hàng?')) {
-            dispatch(removeCartItem(productId));
+    const handleRemoveItem = async (productId) => {
+        if (window.confirm('Bạn có chắc chắn muốn bỏ sản phẩm này khỏi giỏ hàng?')) {
+            try {
+                await dispatch(removeCartItem(productId)).unwrap();
+            } catch (error) {
+                alert("❌ Lỗi xóa sản phẩm: " + (error.message || error));
+                console.error(error);
+            }
         }
     };
 

@@ -5,14 +5,14 @@ const Cart = require('../model/cart.model');
 exports.checkoutCOD = async (req, res) => {
     try {
         const { shippingAddress } = req.body;
-        const cart = await Cart.findOne({ user: req.user._id });
+        const cart = await Cart.findOne({ user: req.user.userId });
 
         if (!cart || cart.items.length === 0) {
             return res.status(400).json({ success: false, message: "Giỏ hàng trống" });
         }
 
         const newOrder = new Order({
-            user: req.user._id,
+            user: req.user.userId,
             items: cart.items,
             shippingAddress,
             paymentMethod: 'COD', // Cứng phương thức COD

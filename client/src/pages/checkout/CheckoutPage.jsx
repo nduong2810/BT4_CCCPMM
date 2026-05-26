@@ -23,18 +23,32 @@ const CheckoutPage = () => {
 
     const handleCheckout = async (e) => {
         e.preventDefault();
-        if (items.length === 0) {
-            alert('Giỏ hàng của bạn đang trống!');
-            return navigate('/cart');
+
+        // Kiểm tra dữ liệu trước khi gửi
+        if (!form.fullName || !form.phone || !form.address) {
+            alert("Vui lòng điền đầy đủ thông tin giao hàng!");
+            return;
         }
+
         setIsSubmitting(true);
         try {
-            await checkoutAPI({ shippingAddress: form });
-            alert('🎉 Đặt hàng thành công! Vui lòng chuẩn bị tiền mặt khi nhận hàng (COD).');
-            dispatch(fetchCart()); // Reset giỏ hàng trong Redux
+            // Đảm bảo cấu trúc gửi lên khớp với model: shippingAddress: { fullName, phone, address }
+            await checkoutAPI({
+                shippingAddress: {
+                    fullName: form.fullName,
+                    phone: form.phone,
+                    address: form.address
+                }
+            });
+
+            alert('🎉 Đặt hàng thành công!');
+            dispatch(fetchCart()); // Làm mới giỏ hàng
             navigate('/');
         } catch (error) {
-            alert('Lỗi thanh toán: ' + (error.response?.data?.message || 'Có lỗi xảy ra'));
+            // Hiển thị chi tiết lỗi từ server để biết thiếu trường nào
+            const errorMsg = error.response?.data?.message || "Có lỗi xảy ra khi đặt hàng";
+            alert('Lỗi thanh toán: ' + errorMsg);
+            console.error("Checkout error:", error);
         } finally {
             setIsSubmitting(false);
         }
