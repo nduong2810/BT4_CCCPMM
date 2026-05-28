@@ -5,6 +5,7 @@ import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
 import { checkoutAPI } from '../../services/orderService';
 import { fetchCart } from '../../store/slices/cartSlice';
+import { getProductImageUrl } from '../../utils/imageUrl';
 
 const CheckoutPage = () => {
     const navigate = useNavigate();
@@ -43,7 +44,7 @@ const CheckoutPage = () => {
 
             alert('🎉 Đặt hàng thành công!');
             dispatch(fetchCart()); // Làm mới giỏ hàng
-            navigate('/');
+            navigate('/orders');
         } catch (error) {
             // Hiển thị chi tiết lỗi từ server để biết thiếu trường nào
             const errorMsg = error.response?.data?.message || "Có lỗi xảy ra khi đặt hàng";
@@ -136,8 +137,16 @@ const CheckoutPage = () => {
                                 {items?.map(item => (
                                     <div key={item.product._id} className="flex gap-4 items-center">
                                         <div className="relative flex-shrink-0">
-                                            <div className="w-16 h-16 border border-surface-variant rounded-lg overflow-hidden bg-white p-1">
-                                                <img src={item.product.images?.[0] || 'https://via.placeholder.com/150'} alt={item.product.name} className="w-full h-full object-cover mix-blend-multiply" />
+                                            <div className="w-16 h-16 border border-surface-variant rounded-lg overflow-hidden bg-white p-1.5 flex items-center justify-center">
+                                                <img
+                                                    src={getProductImageUrl(item.product)}
+                                                    alt={item.product.name || 'Sản phẩm'}
+                                                    className="block max-w-full max-h-full w-full h-full object-contain object-center"
+                                                    loading="lazy"
+                                                    onError={(event) => {
+                                                        event.currentTarget.src = 'https://via.placeholder.com/300x300?text=No+Image';
+                                                    }}
+                                                />
                                             </div>
                                             <span className="absolute -top-2 -right-2 bg-secondary text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-sm">{item.quantity}</span>
                                         </div>
