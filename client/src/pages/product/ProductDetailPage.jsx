@@ -11,6 +11,7 @@ import 'swiper/css/navigation';
 // Import Redux hooks và action
 import { useDispatch } from 'react-redux';
 import { addToCart } from '../../store/slices/cartSlice';
+import { getProductImageUrl, PLACEHOLDER_IMAGE } from '../../utils/imageUrl';
 
 const ProductDetailPage = () => {
     const { id } = useParams();
@@ -66,11 +67,21 @@ const ProductDetailPage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
                     {/* HÌNH ẢNH (SWIPER) */}
                     <div className="lg:col-span-7 flex flex-col gap-base">
-                        <div className="bg-white w-full aspect-square rounded flex items-center justify-center p-8 shadow-sm">
-                            <Swiper modules={[Navigation, Pagination]} navigation pagination className="w-full h-full">
+                        <div className="bg-white w-full aspect-square max-h-[620px] rounded flex items-center justify-center overflow-hidden shadow-sm border border-surface-variant">
+                            <Swiper modules={[Navigation, Pagination]} navigation pagination className="w-full h-full [&_.swiper-slide]:flex [&_.swiper-slide]:items-center [&_.swiper-slide]:justify-center">
                                 {product.images?.length > 0 ? product.images.map((img, idx) => (
-                                    <SwiperSlide key={idx} className="flex items-center justify-center">
-                                        <img src={img} alt="Product" className="max-w-full max-h-full object-contain mix-blend-multiply" />
+                                    <SwiperSlide key={idx}>
+                                        <div className="w-full h-full p-4 sm:p-6 flex items-center justify-center bg-white">
+                                            <img
+                                                src={getProductImageUrl(img)}
+                                                alt={product.name || 'Product'}
+                                                className="block w-full h-full object-cover object-center rounded-sm"
+                                                loading="lazy"
+                                                onError={(event) => {
+                                                    event.currentTarget.src = PLACEHOLDER_IMAGE;
+                                                }}
+                                            />
+                                        </div>
                                     </SwiperSlide>
                                 )) : (
                                     <SwiperSlide className="flex items-center justify-center text-gray-400">Chưa có hình ảnh</SwiperSlide>
@@ -123,8 +134,16 @@ const ProductDetailPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
                         {related.map(item => (
                             <Link to={`/product/${item._id}`} key={item._id} className="group cursor-pointer">
-                                <div className="bg-white w-full aspect-[4/5] flex items-center justify-center p-8 mb-6 transition-transform hover:-translate-y-1 shadow-sm">
-                                    <img src={item.images?.[0]} alt={item.name} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform" />
+                                <div className="bg-white w-full aspect-[4/5] flex items-center justify-center p-4 mb-6 transition-transform hover:-translate-y-1 shadow-sm overflow-hidden border border-surface-variant">
+                                    <img
+                                        src={getProductImageUrl(item)}
+                                        alt={item.name || 'Sản phẩm'}
+                                        className="w-full h-full object-cover object-center rounded-sm group-hover:scale-105 transition-transform"
+                                        loading="lazy"
+                                        onError={(event) => {
+                                            event.currentTarget.src = PLACEHOLDER_IMAGE;
+                                        }}
+                                    />
                                 </div>
                                 <div className="text-center">
                                     <h3 className="font-headline-md text-[20px] text-primary mb-2">{item.name}</h3>
