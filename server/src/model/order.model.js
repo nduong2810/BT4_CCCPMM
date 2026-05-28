@@ -53,7 +53,7 @@ const orderSchema = new mongoose.Schema({
     confirmedAt: { type: Date }
 }, { timestamps: true });
 
-orderSchema.pre('save', function(next) {
+orderSchema.pre('save', function() {
     if (this.isNew && (!this.statusHistory || this.statusHistory.length === 0)) {
         this.statusHistory = [{
             status: this.status || ORDER_STATUS.NEW,
@@ -63,7 +63,6 @@ orderSchema.pre('save', function(next) {
             changedAt: new Date()
         }];
     }
-    next();
 });
 
 orderSchema.statics.ORDER_STATUS = ORDER_STATUS;
