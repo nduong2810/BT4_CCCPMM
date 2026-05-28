@@ -4,6 +4,16 @@ const Cart = require('../model/cart.model');
 const THIRTY_MINUTES = 30 * 60 * 1000;
 const { ORDER_STATUS, ORDER_STATUS_LABELS } = Order;
 
+const STATUS_TRANSITIONS = {
+    [ORDER_STATUS.NEW]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PREPARING, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.PREPARING]: [ORDER_STATUS.SHIPPING, ORDER_STATUS.CANCELLATION_REQUESTED, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.CANCELLATION_REQUESTED]: [ORDER_STATUS.PREPARING, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.SHIPPING]: [ORDER_STATUS.DELIVERED],
+    [ORDER_STATUS.DELIVERED]: [],
+    [ORDER_STATUS.CANCELLED]: []
+};
+
 const addStatusHistory = (order, status, note, changedBy = 'system') => {
     order.status = status;
     order.statusHistory.push({
@@ -15,30 +25,28 @@ const addStatusHistory = (order, status, note, changedBy = 'system') => {
     });
 };
 
+const canMoveStatus = (currentStatus, nextStatus) => {
+    return STATUS_TRANSITIONS[currentStatus]?.includes(nextStatus) || false;
+};
+
 const autoConfirmOldNewOrders = async () => {
     const expiredAt = new Date(Date.now() - THIRTY_MINUTES);
 
-    await Order.updateMany(
-        {
-            status: ORDER_STATUS.NEW,
-            createdAt: { $lte: expiredAt }
-        },
-        {
-            $set: {
-                status: ORDER_STATUS.CONFIRMED,
-                confirmedAt: new Date()
-            },
-            $push: {
-                statusHistory: {
-                    status: ORDER_STATUS.CONFIRMED,
-                    label: ORDER_STATUS_LABELS[ORDER_STATUS.CONFIRMED],
-                    note: 'Hệ thống tự động xác nhận sau 30 phút',
-                    changedBy: 'system',
-                    changedAt: new Date()
-                }
-            }
-        }
-    );
+    const orders = await Order.find({
+        status: ORDER_STATUS.NEW,
+        createdAt: { $lte: expiredAt }
+    });
+
+    await Promise.all(orders.map(async (order) => {
+        addStatusHistory(
+            order,
+            ORDER_STATUS.CONFIRMED,
+            'Hệ thống tự động xác nhận sau 30 phút',
+            'system'
+        );
+        order.confirmedAt = new Date();
+        await order.save();
+    }));
 };
 
 const scheduleAutoConfirm = (orderId) => {
@@ -76,6 +84,13 @@ const getCancelInfo = (order) => {
     };
 };
 
+const buildOrderResponse = (order) => ({
+    ...order.toObject(),
+    statusLabel: ORDER_STATUS_LABELS[order.status],
+    cancelInfo: getCancelInfo(order),
+    nextStatuses: STATUS_TRANSITIONS[order.status] || []
+});
+
 // Thanh toán COD
 exports.checkoutCOD = async (req, res) => {
     try {
@@ -106,7 +121,7 @@ exports.checkoutCOD = async (req, res) => {
         res.status(201).json({
             success: true,
             message: 'Đặt hàng COD thành công',
-            order: newOrder
+            order: buildOrderResponse(newOrder)
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -124,11 +139,7 @@ exports.getMyOrders = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            orders: orders.map(order => ({
-                ...order.toObject(),
-                statusLabel: ORDER_STATUS_LABELS[order.status],
-                cancelInfo: getCancelInfo(order)
-            }))
+            orders: orders.map(buildOrderResponse)
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -149,11 +160,7 @@ exports.getMyOrderDetail = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            order: {
-                ...order.toObject(),
-                statusLabel: ORDER_STATUS_LABELS[order.status],
-                cancelInfo: getCancelInfo(order)
-            }
+            order: buildOrderResponse(order)
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -183,11 +190,7 @@ exports.cancelMyOrder = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 message: 'Đã hủy đơn hàng thành công',
-                order: {
-                    ...order.toObject(),
-                    statusLabel: ORDER_STATUS_LABELS[order.status],
-                    cancelInfo: getCancelInfo(order)
-                }
+                order: buildOrderResponse(order)
             });
         }
 
@@ -200,11 +203,7 @@ exports.cancelMyOrder = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 message: 'Đã gửi yêu cầu hủy đơn cho shop',
-                order: {
-                    ...order.toObject(),
-                    statusLabel: ORDER_STATUS_LABELS[order.status],
-                    cancelInfo: getCancelInfo(order)
-                }
+                order: buildOrderResponse(order)
             });
         }
 
@@ -220,6 +219,8 @@ exports.cancelMyOrder = async (req, res) => {
 // Shop/admin cập nhật trạng thái đơn hàng
 exports.updateOrderStatus = async (req, res) => {
     try {
+        await autoConfirmOldNewOrders();
+
         const { status, note = '' } = req.body;
         const allowStatuses = [
             ORDER_STATUS.CONFIRMED,
@@ -238,8 +239,13 @@ exports.updateOrderStatus = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
         }
 
-        if ([ORDER_STATUS.DELIVERED, ORDER_STATUS.CANCELLED].includes(order.status)) {
-            return res.status(400).json({ success: false, message: 'Không thể cập nhật đơn hàng đã hoàn tất hoặc đã hủy' });
+        if (!canMoveStatus(order.status, status)) {
+            return res.status(400).json({
+                success: false,
+                message: `Không thể chuyển đơn hàng từ "${ORDER_STATUS_LABELS[order.status]}" sang "${ORDER_STATUS_LABELS[status]}"`,
+                currentStatus: order.status,
+                nextStatuses: STATUS_TRANSITIONS[order.status] || []
+            });
         }
 
         addStatusHistory(order, status, note || `Shop cập nhật trạng thái: ${ORDER_STATUS_LABELS[status]}`, 'shop');
@@ -252,11 +258,7 @@ exports.updateOrderStatus = async (req, res) => {
         res.status(200).json({
             success: true,
             message: 'Cập nhật trạng thái đơn hàng thành công',
-            order: {
-                ...order.toObject(),
-                statusLabel: ORDER_STATUS_LABELS[order.status],
-                cancelInfo: getCancelInfo(order)
-            }
+            order: buildOrderResponse(order)
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
