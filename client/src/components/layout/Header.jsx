@@ -64,7 +64,7 @@ const Header = () => {
                                             Chào, {user.fullName || 'Thành viên'}
                                         </span>
                                         <Link to="/user/profile" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Tài khoản</Link>
-                                        <a href="#" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Đơn hàng</a>
+                                        <Link to="/orders" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Đơn hàng</Link>
                                         <hr className="border-surface-variant" />
                                         <button onClick={handleLogout} className="font-label-sm text-label-sm text-error hover:text-error-container transition-colors text-left font-medium">
                                             Đăng xuất
