@@ -4,6 +4,7 @@ import { fetchCart, updateCartItem, removeCartItem } from '../../store/slices/ca
 import { useNavigate, Link } from 'react-router-dom';
 import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
+import { getProductImageUrl } from '../../utils/imageUrl';
 
 const CartPage = () => {
     const dispatch = useDispatch();
@@ -70,13 +71,17 @@ const CartPage = () => {
                         <div className="lg:col-span-8 space-y-6">
                             {items.map((item) => (
                                 <div key={item.product._id} className="flex flex-col sm:flex-row gap-6 p-6 bg-white rounded-2xl border border-surface-variant shadow-sm items-center relative transition-transform hover:-translate-y-1">
-                                    <div className="w-28 h-28 flex-shrink-0 border border-outline-variant rounded-xl overflow-hidden bg-surface-container-lowest">
+                                    <Link to={`/product/${item.product._id}`} className="w-32 h-32 sm:w-28 sm:h-28 flex-shrink-0 border border-outline-variant rounded-xl overflow-hidden bg-white p-2 flex items-center justify-center">
                                         <img
-                                            src={item.product.images?.[0] || 'https://via.placeholder.com/150'}
-                                            alt={item.product.name}
-                                            className="w-full h-full object-cover object-center mix-blend-multiply p-2"
+                                            src={getProductImageUrl(item.product)}
+                                            alt={item.product.name || 'Sản phẩm'}
+                                            className="block max-w-full max-h-full w-full h-full object-contain object-center"
+                                            loading="lazy"
+                                            onError={(event) => {
+                                                event.currentTarget.src = 'https://via.placeholder.com/300x300?text=No+Image';
+                                            }}
                                         />
-                                    </div>
+                                    </Link>
 
                                     <div className="flex-1 w-full text-center sm:text-left">
                                         <Link to={`/product/${item.product._id}`} className="text-lg font-bold text-primary hover:text-secondary transition-colors line-clamp-2">
