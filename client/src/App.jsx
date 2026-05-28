@@ -8,6 +8,7 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import CartPage from './pages/cart/CartPage';
 import CheckoutPage from './pages/checkout/CheckoutPage';
+import OrderHistoryPage from './pages/order/OrderHistoryPage';
 
 // Import trang bán hàng
 import HomePage from './pages/home/HomePage';
@@ -36,9 +37,10 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/product/:id" element={<ProductDetailPage />} />
 
-            {/* ---> THÊM ROUTE GIỎ HÀNG VÀ THANH TOÁN TẠI ĐÂY <--- */}
+            {/* Giỏ hàng, thanh toán và lịch sử đơn hàng */}
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/orders" element={<OrderHistoryPage />} />
 
             {/* 2. KHU VỰC TÀI KHOẢN (Bọc trong khung Shell) */}
             <Route element={<Shell />}>
