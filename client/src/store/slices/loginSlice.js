@@ -1,6 +1,16 @@
 ﻿import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { loginUser } from '../../services/authService';
 
+const savedUser = (() => {
+  try {
+    const rawUser = localStorage.getItem('currentUser');
+    return rawUser ? JSON.parse(rawUser) : null;
+  } catch {
+    localStorage.removeItem('currentUser');
+    return null;
+  }
+})();
+
 const initialState = {
   form: {
     email: '',
@@ -9,9 +19,9 @@ const initialState = {
   loading: false,
   successMessage: '',
   errorMessage: '',
-  user: null,
+  user: savedUser,
   redirectUrl: '',
-  isAuthenticated: false,
+  isAuthenticated: Boolean(savedUser),
 };
 
 const extractError = (error) => {
@@ -45,7 +55,25 @@ const loginSlice = createSlice({
       state.errorMessage = '';
       state.successMessage = '';
     },
-    resetLoginState: () => initialState,
+    setCurrentUser: (state, action) => {
+      state.user = action.payload || null;
+      state.isAuthenticated = Boolean(action.payload);
+      if (action.payload) {
+        localStorage.setItem('currentUser', JSON.stringify(action.payload));
+      } else {
+        localStorage.removeItem('currentUser');
+      }
+    },
+    resetLoginState: () => {
+      localStorage.removeItem('currentUser');
+      return {
+        ...initialState,
+        user: null,
+        isAuthenticated: false,
+        successMessage: '',
+        errorMessage: '',
+      };
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -55,11 +83,17 @@ const loginSlice = createSlice({
         state.successMessage = '';
       })
       .addCase(loginThunk.fulfilled, (state, action) => {
+        const user = action.payload.user || null;
         state.loading = false;
         state.successMessage = action.payload.message || 'Đăng nhập thành công.';
-        state.user = action.payload.user || null;
+        state.user = user;
         state.redirectUrl = action.payload.redirectUrl || '/';
-        state.isAuthenticated = true;
+        state.isAuthenticated = Boolean(user);
+        state.form.password = '';
+
+        if (user) {
+          localStorage.setItem('currentUser', JSON.stringify(user));
+        }
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.loading = false;
@@ -69,5 +103,5 @@ const loginSlice = createSlice({
   },
 });
 
-export const { setLoginField, clearLoginMessages, resetLoginState } = loginSlice.actions;
+export const { setLoginField, clearLoginMessages, setCurrentUser, resetLoginState } = loginSlice.actions;
 export default loginSlice.reducer;
