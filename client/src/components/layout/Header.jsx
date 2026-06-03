@@ -28,8 +28,8 @@ const Header = () => {
                 {/* Desktop Navigation Links */}
                 <div className="hidden md:flex gap-8 items-center font-label-sm text-label-sm">
                     <Link to="/" className="text-secondary border-b border-secondary pb-1 transition-all duration-300 ease-out">Bộ sưu tập</Link>
+                    <a href="#shop" className="text-on-surface-variant hover:text-secondary transition-colors duration-500 ease-in-out">Cửa hàng</a>
                     <a href="#" className="text-on-surface-variant hover:text-secondary transition-colors duration-500 ease-in-out">Di sản</a>
-                    <a href="#" className="text-on-surface-variant hover:text-secondary transition-colors duration-500 ease-in-out">Cửa hàng</a>
                     <a href="#" className="text-on-surface-variant hover:text-secondary transition-colors duration-500 ease-in-out">Dịch vụ</a>
                 </div>
 
@@ -73,6 +73,9 @@ const Header = () => {
                                 ) : (
                                     /* CHƯA ĐĂNG NHẬP: Chỉ hiển thị nút Đăng nhập và Đăng ký */
                                     <>
+                                        <span className="font-label-sm text-label-sm text-on-surface-variant border-b border-surface-variant pb-2">
+                                            Khách chỉ có thể xem và lọc sản phẩm.
+                                        </span>
                                         <Link to="/auth/login" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Đăng nhập</Link>
                                         <Link to="/auth/register" className="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary">Đăng ký</Link>
                                     </>
@@ -81,17 +84,19 @@ const Header = () => {
                         </div>
                     </div>
 
-                    {/* Icon Giỏ Hàng - Đã sửa thành Link để chuyển trang và hiện số lượng */}
-                    <Link to="/cart" aria-label="Cart" className="relative hover:text-secondary transition-colors duration-500 ease-in-out flex items-center">
-                        <span className="material-symbols-outlined">shopping_bag</span>
+                    {/* Icon Giỏ Hàng chỉ hiện khi đã đăng nhập */}
+                    {isAuthenticated && (
+                        <Link to="/cart" aria-label="Cart" className="relative hover:text-secondary transition-colors duration-500 ease-in-out flex items-center">
+                            <span className="material-symbols-outlined">shopping_bag</span>
 
-                        {/* Hiển thị số lượng sản phẩm bằng một chấm đỏ nhỏ nếu giỏ hàng có đồ */}
-                        {cartItems && cartItems.length > 0 && (
-                            <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
-                                {cartItems.length}
-                            </span>
-                        )}
-                    </Link>
+                            {/* Hiển thị số lượng sản phẩm bằng một chấm đỏ nhỏ nếu giỏ hàng có đồ */}
+                            {cartItems && cartItems.length > 0 && (
+                                <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                                    {cartItems.length}
+                                </span>
+                            )}
+                        </Link>
+                    )}
 
                     {/* Mobile Menu Toggle */}
                     <button className="md:hidden hover:text-secondary transition-colors duration-500 ease-in-out">
