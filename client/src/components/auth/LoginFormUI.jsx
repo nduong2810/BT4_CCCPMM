@@ -53,10 +53,18 @@ export default function LoginFormUI({ form, loading, errorMessage, successMessag
         </AppButton>
       </form>
 
-      <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-4 text-center text-sm text-slate-600 ring-1 ring-slate-100">
-        Chưa có tài khoản?{' '}
-        <Link to="/auth/register" className="font-bold text-sky-700 hover:text-sky-900">
-          Đăng ký ngay
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Link
+          to="/"
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:text-primary"
+        >
+          Về trang chủ
+        </Link>
+        <Link
+          to="/auth/register"
+          className="rounded-xl bg-slate-900 px-4 py-2.5 text-center text-sm font-bold text-white transition hover:bg-primary"
+        >
+          Đăng ký tài khoản
         </Link>
       </div>
     </AppCard>
