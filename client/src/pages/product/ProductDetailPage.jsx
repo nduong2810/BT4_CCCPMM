@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import apiClient from '../../lib/apiClient';
 import Header from '../../components/layout/Header';
@@ -18,22 +18,63 @@ const ProductDetailPage = () => {
     const [product, setProduct] = useState(null);
     const [related, setRelated] = useState([]);
     const [quantity, setQuantity] = useState(1);
+    const [lastUpdated, setLastUpdated] = useState(null);
 
     // 1. Khai báo dispatch
     const dispatch = useDispatch();
 
+    const stock = useMemo(() => Number(product?.stock ?? product?.countInStock ?? 0), [product]);
+
+    const loadProduct = useCallback(async () => {
+        try {
+            const res = await apiClient.get(`/products/${id}?t=${Date.now()}`);
+            setProduct(res.data);
+            setLastUpdated(new Date());
+            setQuantity(q => Math.min(Math.max(q, 1), Number(res.data?.stock ?? res.data?.countInStock ?? 0) || 1));
+
+            const rel = await apiClient.get(`/products?category=${res.data.category}&exclude=${id}&limit=3`);
+            setRelated(rel.data || []);
+        } catch (err) {
+            console.error(err);
+        }
+    }, [id]);
+
     useEffect(() => {
         window.scrollTo(0, 0);
-        apiClient.get(`/products/${id}`).then(res => {
-            setProduct(res.data);
-            apiClient.get(`/products?category=${res.data.category}&exclude=${id}&limit=3`)
-                .then(rel => setRelated(rel.data || []));
-        }).catch(err => console.error(err));
-    }, [id]);
+        loadProduct();
+    }, [loadProduct]);
+
+    useEffect(() => {
+        const refreshWhenVisible = () => {
+            if (document.visibilityState === 'visible') {
+                loadProduct();
+            }
+        };
+
+        const intervalId = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                loadProduct();
+            }
+        }, 10000);
+
+        window.addEventListener('focus', refreshWhenVisible);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', refreshWhenVisible);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [loadProduct]);
 
     // 2. Viết hàm xử lý thêm vào giỏ hàng
     const handleAddToCart = () => {
         if (!product) return;
+
+        if (stock <= 0) {
+            alert('Sản phẩm đã hết hàng!');
+            return;
+        }
 
         dispatch(addToCart({
             productId: product._id, // Lấy ID của sản phẩm hiện tại
@@ -43,6 +84,7 @@ const ProductDetailPage = () => {
             .unwrap()
             .then(() => {
                 alert("Đã thêm sản phẩm vào giỏ hàng thành công!");
+                loadProduct();
             })
             .catch((error) => {
                 alert("Lỗi khi thêm vào giỏ hàng: " + (error?.message || "Vui lòng đăng nhập"));
@@ -96,9 +138,15 @@ const ProductDetailPage = () => {
                             <span className="px-3 py-1 bg-surface-container-high text-on-surface font-label-sm rounded uppercase tracking-widest">{product.category}</span>
                             <span className="font-label-sm text-on-surface-variant flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[16px] text-secondary">local_fire_department</span>
-                                Đã bán: {product.sold} | Tồn kho: {product.countInStock}
+                                Đã bán: {product.sold || 0} | Tồn kho: {stock}
                             </span>
                         </div>
+
+                        {lastUpdated && (
+                            <p className="mb-3 text-xs text-on-surface-variant">
+                                Tồn kho cập nhật lúc: {lastUpdated.toLocaleTimeString('vi-VN')}
+                            </p>
+                        )}
 
                         <h1 className="font-display-lg text-[40px] text-primary mb-2 leading-tight">{product.name}</h1>
                         <p className="font-headline-md text-[32px] text-primary mb-8">{product.price?.toLocaleString()} VNĐ</p>
@@ -112,17 +160,17 @@ const ProductDetailPage = () => {
                             <div className="flex items-center border border-outline-variant rounded">
                                 <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="p-3 text-on-surface-variant hover:bg-surface-container transition-colors">-</button>
                                 <span className="w-12 text-center font-body-md">{quantity}</span>
-                                <button onClick={() => setQuantity(q => Math.min(product.countInStock, q + 1))} className="p-3 text-on-surface-variant hover:bg-surface-container transition-colors">+</button>
+                                <button onClick={() => setQuantity(q => Math.min(stock || 1, q + 1))} className="p-3 text-on-surface-variant hover:bg-surface-container transition-colors">+</button>
                             </div>
 
                             {/* 3. GẮN SỰ KIỆN onClick VÀO NÚT NÀY */}
                             <button
                                 onClick={handleAddToCart}
-                                disabled={product.countInStock === 0}
+                                disabled={stock === 0}
                                 className="flex-1 bg-primary text-white py-4 px-8 font-label-sm uppercase tracking-widest hover:bg-primary-container transition-all flex justify-center items-center gap-2 disabled:opacity-50"
                             >
                                 <span className="material-symbols-outlined">shopping_bag</span>
-                                {product.countInStock === 0 ? "HẾT HÀNG" : "THÊM VÀO GIỎ"}
+                                {stock === 0 ? "HẾT HÀNG" : "THÊM VÀO GIỎ"}
                             </button>
                         </div>
                     </div>
