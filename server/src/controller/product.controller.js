@@ -1,38 +1,47 @@
 import Product from '../model/product.model.js';
 
+const buildProductQuery = ({ keyword, category, minPrice, maxPrice }) => {
+    const query = {};
+
+    if (keyword && keyword.trim()) {
+        query.name = { $regex: keyword.trim(), $options: 'i' };
+    }
+
+    if (category && category.trim()) {
+        query.category = category.trim();
+    }
+
+    const min = Number(minPrice);
+    const max = Number(maxPrice);
+
+    if (!Number.isNaN(min) && minPrice !== undefined && minPrice !== '') {
+        query.price = { ...(query.price || {}), $gte: min };
+    }
+
+    if (!Number.isNaN(max) && maxPrice !== undefined && maxPrice !== '') {
+        query.price = { ...(query.price || {}), $lte: max };
+    }
+
+    return query;
+};
+
+const buildSortQuery = (sort) => {
+    if (!sort) return { createdAt: -1 };
+
+    const [field, order] = sort.split(':');
+    const allowedFields = ['price', 'sold', 'views', 'createdAt', 'name'];
+
+    if (!allowedFields.includes(field)) return { createdAt: -1 };
+
+    return { [field]: Number(order) === 1 ? 1 : -1 };
+};
+
 export const getProducts = async (req, res) => {
     try {
-        // 1. Lấy các tham số lọc từ URL (query params)
         const { keyword, category, minPrice, maxPrice, sort } = req.query;
+        const query = buildProductQuery({ keyword, category, minPrice, maxPrice });
+        const sortQuery = buildSortQuery(sort);
 
-        // 2. Tạo đối tượng query để truy vấn MongoDB
-        let query = {};
-
-        // - Lọc theo từ khóa (Tìm kiếm tên sản phẩm có chứa từ khóa, không phân biệt hoa thường)
-        if (keyword) {
-            query.name = { $regex: keyword, $options: 'i' };
-        }
-
-        // - Lọc theo danh mục
-        if (category) {
-            query.category = category;
-        }
-
-        // - Lọc theo khoảng giá (minPrice đến maxPrice)
-        if (minPrice || maxPrice) {
-            query.price = {};
-            if (minPrice) query.price.$gte = Number(minPrice); // Lớn hơn hoặc bằng
-            if (maxPrice) query.price.$lte = Number(maxPrice); // Nhỏ hơn hoặc bằng
-        }
-
-        // 3. Xử lý sắp xếp (Mặc định hiển thị mới nhất)
-        let sortQuery = { createdAt: -1 };
-        if (sort) {
-            const [field, order] = sort.split(':');
-            sortQuery[field] = Number(order); // VD: Nếu FE gửi lên sort=price:1 -> sắp xếp giá tăng dần
-        }
-
-        // 4. Thực thi truy vấn
         const products = await Product.find(query).sort(sortQuery);
 
         return res.status(200).json(products);
@@ -60,8 +69,7 @@ export const getHomeProducts = async (req, res) => {
         const bestSellers = await Product.find().sort({ sold: -1 }).limit(4);
 
         // 3. Lấy 4 sản phẩm khuyến mãi
-        // (Nếu Database bạn chưa có trường discount, mình tạm thời lấy sản phẩm có giá thấp nhất hoặc bạn có thể đổi logic sau)
-        const promotions = await Product.find({ /* discount: { $gt: 0 } */ }).sort({ price: 1 }).limit(4);
+        const promotions = await Product.find({ discount: { $gt: 0 } }).sort({ discount: -1 }).limit(4);
 
         return res.status(200).json({
             success: true,
@@ -85,8 +93,11 @@ export const seedProducts = async (req, res) => {
                 "description": "Mang trong mình bộ máy cơ tự động tinh xảo...",
                 "price": 462500000,
                 "category": "Nam",
+                "stock": 12,
                 "countInStock": 12,
                 "sold": 150,
+                "views": 0,
+                "discount": 0,
                 "images": [
                     "https://images.unsplash.com/photo-1524592094714-0f0654e20314?q=80&w=1999&auto=format&fit=crop"
                 ]
@@ -103,31 +114,35 @@ export const seedProducts = async (req, res) => {
 
 export const getProductsLazyLoad = async (req, res) => {
     try {
-        // Nhận vào category, số trang (page) và số lượng phần tử mỗi lần load (limit)
-        const { category, page = 1, limit = 4 } = req.query;
+        const {
+            keyword,
+            category,
+            minPrice,
+            maxPrice,
+            sort,
+            page = 1,
+            limit = 4
+        } = req.query;
 
-        let query = {};
-        if (category) {
-            query.category = category;
-        }
+        const query = buildProductQuery({ keyword, category, minPrice, maxPrice });
+        const sortQuery = buildSortQuery(sort);
+        const pageNumber = Math.max(Number(page) || 1, 1);
+        const limitNumber = Math.max(Number(limit) || 4, 1);
+        const skipDocs = (pageNumber - 1) * limitNumber;
 
-        // Tính số lượng bản ghi cần bỏ qua
-        const skipDocs = (Number(page) - 1) * Number(limit);
-
-        // Lấy sản phẩm của trang hiện tại
         const products = await Product.find(query)
-            .sort({ createdAt: -1 })
+            .sort(sortQuery)
             .skip(skipDocs)
-            .limit(Number(limit));
+            .limit(limitNumber);
 
-        // Tính tổng số lượng sản phẩm khớp điều kiện để FE biết khi nào hết dữ liệu
         const totalProducts = await Product.countDocuments(query);
         const hasMore = skipDocs + products.length < totalProducts;
 
         return res.status(200).json({
             success: true,
             products,
-            hasMore // Trả về true/false để FE biết có cần load tiếp không
+            hasMore,
+            totalProducts
         });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Lỗi tải phân trang", error: error.message });
