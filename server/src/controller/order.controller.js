@@ -14,6 +14,14 @@ const STATUS_TRANSITIONS = {
     [ORDER_STATUS.CANCELLED]: []
 };
 
+const getProductModel = () => {
+    try {
+        return require('../model/product.model').default || require('../model/product.model');
+    } catch (error) {
+        return require('../model/product.model.js').default || require('../model/product.model.js');
+    }
+};
+
 const addStatusHistory = (order, status, note, changedBy = 'system') => {
     order.status = status;
     order.statusHistory.push({
@@ -27,6 +35,32 @@ const addStatusHistory = (order, status, note, changedBy = 'system') => {
 
 const canMoveStatus = (currentStatus, nextStatus) => {
     return STATUS_TRANSITIONS[currentStatus]?.includes(nextStatus) || false;
+};
+
+const syncDeliveredInventory = async (order) => {
+    if (order.status !== ORDER_STATUS.DELIVERED || order.inventoryUpdated) return;
+
+    const Product = getProductModel();
+
+    for (const item of order.items) {
+        if (!item.product || !item.quantity) continue;
+
+        const product = await Product.findById(item.product);
+        if (!product) continue;
+
+        const currentStock = Number(product.stock ?? product.countInStock ?? 0);
+        const currentCountInStock = Number(product.countInStock ?? product.stock ?? 0);
+        const quantity = Number(item.quantity);
+
+        product.stock = Math.max(currentStock - quantity, 0);
+        product.countInStock = Math.max(currentCountInStock - quantity, 0);
+        product.sold = Number(product.sold || 0) + quantity;
+
+        await product.save();
+    }
+
+    order.inventoryUpdated = true;
+    order.deliveredAt = order.deliveredAt || new Date();
 };
 
 const autoConfirmOldNewOrders = async () => {
@@ -252,6 +286,7 @@ exports.updateOrderStatus = async (req, res) => {
 
         if (status === ORDER_STATUS.CONFIRMED) order.confirmedAt = new Date();
         if (status === ORDER_STATUS.CANCELLED) order.cancelledAt = new Date();
+        if (status === ORDER_STATUS.DELIVERED) await syncDeliveredInventory(order);
 
         await order.save();
 
