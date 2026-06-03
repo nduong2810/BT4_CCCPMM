@@ -81,11 +81,11 @@ function Shell() {
 function App() {
     return (
         <Routes>
-            {/* Khách chỉ được xem trang chủ, tìm kiếm và lọc sản phẩm trên trang chủ */}
+            {/* Khách được xem trang chủ, lọc/tìm kiếm và xem chi tiết sản phẩm */}
             <Route path="/" element={<HomePage />} />
+            <Route path="/product/:id" element={<ProductDetailPage />} />
 
             {/* Các trang mua hàng/yêu cầu tài khoản */}
-            <Route path="/product/:id" element={<RequireAuth><ProductDetailPage /></RequireAuth>} />
             <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
             <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
             <Route path="/orders" element={<RequireAuth><OrderHistoryPage /></RequireAuth>} />
