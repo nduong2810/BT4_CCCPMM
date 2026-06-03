@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
@@ -99,6 +99,12 @@ const OrderCard = ({ order, onCancel }) => {
                 )}
             </div>
 
+            {order.status === 'DELIVERED' && (
+                <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700">
+                    Đơn hàng đã giao thành công. Cảm ơn bạn đã mua hàng.
+                </div>
+            )}
+
             {order.status === 'CANCELLED' && (
                 <div className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">
                     Đơn hàng đã bị hủy{order.cancelReason ? `: ${order.cancelReason}` : ''}.
@@ -190,26 +196,58 @@ const OrderCard = ({ order, onCancel }) => {
 const OrderHistoryPage = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
     const [filter, setFilter] = useState('ALL');
+    const [lastUpdated, setLastUpdated] = useState(null);
 
-    const loadOrders = async () => {
-        setLoading(true);
+    const loadOrders = useCallback(async (showFullLoading = false) => {
+        if (showFullLoading) {
+            setLoading(true);
+        } else {
+            setRefreshing(true);
+        }
+
         setError('');
         try {
             const response = await getMyOrdersAPI();
             setOrders(response.data.orders || []);
+            setLastUpdated(new Date());
         } catch (err) {
             setError(err.response?.data?.message || 'Không thể tải lịch sử đơn hàng');
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         window.scrollTo(0, 0);
-        loadOrders();
-    }, []);
+        loadOrders(true);
+    }, [loadOrders]);
+
+    useEffect(() => {
+        const refreshWhenVisible = () => {
+            if (document.visibilityState === 'visible') {
+                loadOrders(false);
+            }
+        };
+
+        const intervalId = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                loadOrders(false);
+            }
+        }, 10000);
+
+        window.addEventListener('focus', refreshWhenVisible);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', refreshWhenVisible);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [loadOrders]);
 
     const filteredOrders = useMemo(() => {
         if (filter === 'ALL') return orders;
@@ -218,7 +256,7 @@ const OrderHistoryPage = () => {
 
     const handleCancel = async (orderId, reason) => {
         await cancelMyOrderAPI(orderId, reason);
-        await loadOrders();
+        await loadOrders(false);
     };
 
     return (
@@ -239,23 +277,42 @@ const OrderHistoryPage = () => {
                         <p className="mt-2 max-w-2xl text-on-surface-variant">
                             Xem lại toàn bộ đơn hàng, tiến trình xử lý và thực hiện hủy đơn theo thời hạn cho phép.
                         </p>
+                        <p className="mt-2 text-sm text-on-surface-variant">
+                            {lastUpdated ? `Cập nhật lần cuối: ${formatDate(lastUpdated)}` : 'Đang đồng bộ trạng thái đơn hàng...'}
+                        </p>
                     </div>
 
-                    <select
-                        value={filter}
-                        onChange={(event) => setFilter(event.target.value)}
-                        className="rounded-xl border border-surface-variant bg-white px-4 py-3 text-sm font-bold text-primary outline-none focus:border-primary"
-                    >
-                        <option value="ALL">Tất cả trạng thái</option>
-                        <option value="NEW">Đơn hàng mới</option>
-                        <option value="CONFIRMED">Đã xác nhận</option>
-                        <option value="PREPARING">Đang chuẩn bị</option>
-                        <option value="SHIPPING">Đang giao</option>
-                        <option value="DELIVERED">Đã giao</option>
-                        <option value="CANCELLED">Đã hủy</option>
-                        <option value="CANCELLATION_REQUESTED">Yêu cầu hủy</option>
-                    </select>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <button
+                            type="button"
+                            onClick={() => loadOrders(false)}
+                            disabled={refreshing}
+                            className="rounded-xl border border-surface-variant bg-white px-4 py-3 text-sm font-bold text-primary transition-colors hover:bg-surface-container-lowest disabled:opacity-60"
+                        >
+                            {refreshing ? 'Đang cập nhật...' : 'Làm mới'}
+                        </button>
+                        <select
+                            value={filter}
+                            onChange={(event) => setFilter(event.target.value)}
+                            className="rounded-xl border border-surface-variant bg-white px-4 py-3 text-sm font-bold text-primary outline-none focus:border-primary"
+                        >
+                            <option value="ALL">Tất cả trạng thái</option>
+                            <option value="NEW">Đơn hàng mới</option>
+                            <option value="CONFIRMED">Đã xác nhận</option>
+                            <option value="PREPARING">Đang chuẩn bị</option>
+                            <option value="SHIPPING">Đang giao</option>
+                            <option value="DELIVERED">Đã giao</option>
+                            <option value="CANCELLED">Đã hủy</option>
+                            <option value="CANCELLATION_REQUESTED">Yêu cầu hủy</option>
+                        </select>
+                    </div>
                 </div>
+
+                {refreshing && !loading && (
+                    <div className="mb-4 rounded-xl border border-surface-variant bg-white px-4 py-3 text-sm font-medium text-on-surface-variant">
+                        Đang kiểm tra trạng thái đơn hàng mới nhất...
+                    </div>
+                )}
 
                 {loading && <div className="rounded-2xl border border-surface-variant bg-white p-8 text-center font-bold text-primary">Đang tải đơn hàng...</div>}
 
