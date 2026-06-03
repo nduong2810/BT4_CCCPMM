@@ -50,7 +50,9 @@ const orderSchema = new mongoose.Schema({
     cancelReason: { type: String, default: '' },
     cancelRequestedAt: { type: Date },
     cancelledAt: { type: Date },
-    confirmedAt: { type: Date }
+    confirmedAt: { type: Date },
+    deliveredAt: { type: Date },
+    inventoryUpdated: { type: Boolean, default: false }
 }, { timestamps: true });
 
 orderSchema.pre('save', function() {
