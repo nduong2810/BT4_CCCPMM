@@ -15,11 +15,8 @@ const STATUS_TRANSITIONS = {
 };
 
 const getProductModel = () => {
-    try {
-        return require('../model/product.model').default || require('../model/product.model');
-    } catch (error) {
-        return require('../model/product.model.js').default || require('../model/product.model.js');
-    }
+    const productModule = require('../model/product.model');
+    return productModule.default || productModule;
 };
 
 const addStatusHistory = (order, status, note, changedBy = 'system') => {
@@ -37,30 +34,55 @@ const canMoveStatus = (currentStatus, nextStatus) => {
     return STATUS_TRANSITIONS[currentStatus]?.includes(nextStatus) || false;
 };
 
+const getProductId = (productValue) => {
+    if (!productValue) return null;
+    if (productValue._id) return productValue._id;
+    return productValue;
+};
+
 const syncDeliveredInventory = async (order) => {
-    if (order.status !== ORDER_STATUS.DELIVERED || order.inventoryUpdated) return;
+    if (order.status !== ORDER_STATUS.DELIVERED || order.inventoryUpdated) return false;
 
     const Product = getProductModel();
 
     for (const item of order.items) {
-        if (!item.product || !item.quantity) continue;
+        const productId = getProductId(item.product);
+        const quantity = Number(item.quantity || 0);
+        if (!productId || quantity <= 0) continue;
 
-        const product = await Product.findById(item.product);
-        if (!product) continue;
+        await Product.findByIdAndUpdate(productId, {
+            $inc: {
+                stock: -quantity,
+                countInStock: -quantity,
+                sold: quantity
+            }
+        });
 
-        const currentStock = Number(product.stock ?? product.countInStock ?? 0);
-        const currentCountInStock = Number(product.countInStock ?? product.stock ?? 0);
-        const quantity = Number(item.quantity);
-
-        product.stock = Math.max(currentStock - quantity, 0);
-        product.countInStock = Math.max(currentCountInStock - quantity, 0);
-        product.sold = Number(product.sold || 0) + quantity;
-
-        await product.save();
+        const product = await Product.findById(productId);
+        if (product) {
+            const safeStock = Math.max(Number(product.stock ?? product.countInStock ?? 0), 0);
+            const safeCountInStock = Math.max(Number(product.countInStock ?? product.stock ?? 0), 0);
+            product.stock = safeStock;
+            product.countInStock = safeCountInStock;
+            await product.save();
+        }
     }
 
     order.inventoryUpdated = true;
     order.deliveredAt = order.deliveredAt || new Date();
+    return true;
+};
+
+const syncPendingDeliveredInventories = async () => {
+    const pendingOrders = await Order.find({
+        status: ORDER_STATUS.DELIVERED,
+        inventoryUpdated: { $ne: true }
+    });
+
+    await Promise.all(pendingOrders.map(async (order) => {
+        const changed = await syncDeliveredInventory(order);
+        if (changed) await order.save();
+    }));
 };
 
 const autoConfirmOldNewOrders = async () => {
@@ -166,6 +188,7 @@ exports.checkoutCOD = async (req, res) => {
 exports.getMyOrders = async (req, res) => {
     try {
         await autoConfirmOldNewOrders();
+        await syncPendingDeliveredInventories();
 
         const orders = await Order.find({ user: req.user.userId })
             .populate('items.product', 'name images price')
@@ -184,6 +207,7 @@ exports.getMyOrders = async (req, res) => {
 exports.getMyOrderDetail = async (req, res) => {
     try {
         await autoConfirmOldNewOrders();
+        await syncPendingDeliveredInventories();
 
         const order = await Order.findOne({ _id: req.params.id, user: req.user.userId })
             .populate('items.product', 'name images price description');
@@ -273,7 +297,8 @@ exports.updateOrderStatus = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
         }
 
-        if (!canMoveStatus(order.status, status)) {
+        const isResyncDelivered = order.status === ORDER_STATUS.DELIVERED && status === ORDER_STATUS.DELIVERED && !order.inventoryUpdated;
+        if (!isResyncDelivered && !canMoveStatus(order.status, status)) {
             return res.status(400).json({
                 success: false,
                 message: `Không thể chuyển đơn hàng từ "${ORDER_STATUS_LABELS[order.status]}" sang "${ORDER_STATUS_LABELS[status]}"`,
@@ -282,7 +307,9 @@ exports.updateOrderStatus = async (req, res) => {
             });
         }
 
-        addStatusHistory(order, status, note || `Shop cập nhật trạng thái: ${ORDER_STATUS_LABELS[status]}`, 'shop');
+        if (!isResyncDelivered) {
+            addStatusHistory(order, status, note || `Shop cập nhật trạng thái: ${ORDER_STATUS_LABELS[status]}`, 'shop');
+        }
 
         if (status === ORDER_STATUS.CONFIRMED) order.confirmedAt = new Date();
         if (status === ORDER_STATUS.CANCELLED) order.cancelledAt = new Date();
