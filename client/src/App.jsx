@@ -21,7 +21,7 @@ function Shell() {
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#dbeafe,_#f8fafc_55%)] px-4 py-10">
             <div className="mx-auto w-full max-w-3xl">
                 <header className="mb-6 rounded-2xl border border-sky-100 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
-                    <h1 className="text-2xl font-bold text-slate-900">IT Forum / TechStore Auth</h1>
+                    <h1 className="text-2xl font-bold text-slate-900">TechStore</h1>
                 </header>
                 {/* Render các route con (VD: Login, Register) vào đây */}
                 <Outlet />
