@@ -93,9 +93,19 @@ export default function Profile() {
           <p className="mt-1 text-right text-xs text-slate-500">{bioCount}</p>
         </label>
 
-        <AppButton type="submit" disabled={saving}>
-          {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-        </AppButton>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <AppButton type="submit" disabled={saving}>
+            {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+          </AppButton>
+
+          <AppButton
+            type="button"
+            variant="secondary"
+            onClick={() => navigate('/')}
+          >
+            Quay lại trang chủ
+          </AppButton>
+        </div>
       </form>
     </AppCard>
   );
