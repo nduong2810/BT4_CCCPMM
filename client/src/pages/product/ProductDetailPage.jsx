@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import apiClient from '../../lib/apiClient';
 import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
@@ -9,7 +9,7 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 
 // Import Redux hooks và action
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { addToCart } from '../../store/slices/cartSlice';
 import { getProductImageUrl, PLACEHOLDER_IMAGE } from '../../utils/imageUrl';
 
@@ -22,6 +22,8 @@ const ProductDetailPage = () => {
 
     // 1. Khai báo dispatch
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const { isAuthenticated } = useSelector((state) => state.login);
 
     const stock = useMemo(() => Number(product?.stock ?? product?.countInStock ?? 0), [product]);
 
@@ -71,6 +73,11 @@ const ProductDetailPage = () => {
     const handleAddToCart = () => {
         if (!product) return;
 
+        if (!isAuthenticated) {
+            navigate('/auth/login', { state: { from: `/product/${product._id}` } });
+            return;
+        }
+
         if (stock <= 0) {
             alert('Sản phẩm đã hết hàng!');
             return;
@@ -104,6 +111,12 @@ const ProductDetailPage = () => {
                     <span className="material-symbols-outlined text-[14px]">chevron_right</span>
                     <span className="text-primary">{product.name}</span>
                 </div>
+
+                {!isAuthenticated && (
+                    <div className="mb-6 rounded-2xl border border-sky-100 bg-sky-50 px-5 py-4 text-sm text-sky-800">
+                        Bạn đang xem với tư cách khách. Vui lòng đăng nhập hoặc đăng ký để mua sản phẩm này.
+                    </div>
+                )}
 
                 {/* Product Area */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
@@ -166,13 +179,24 @@ const ProductDetailPage = () => {
                             {/* 3. GẮN SỰ KIỆN onClick VÀO NÚT NÀY */}
                             <button
                                 onClick={handleAddToCart}
-                                disabled={stock === 0}
+                                disabled={isAuthenticated && stock === 0}
                                 className="flex-1 bg-primary text-white py-4 px-8 font-label-sm uppercase tracking-widest hover:bg-primary-container transition-all flex justify-center items-center gap-2 disabled:opacity-50"
                             >
                                 <span className="material-symbols-outlined">shopping_bag</span>
-                                {stock === 0 ? "HẾT HÀNG" : "THÊM VÀO GIỎ"}
+                                {!isAuthenticated ? 'ĐĂNG NHẬP ĐỂ MUA' : stock === 0 ? "HẾT HÀNG" : "THÊM VÀO GIỎ"}
                             </button>
                         </div>
+
+                        {!isAuthenticated && (
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <Link to="/auth/login" state={{ from: `/product/${product._id}` }} className="flex-1 rounded-xl border border-primary px-5 py-3 text-center text-sm font-bold text-primary hover:bg-primary hover:text-white">
+                                    Đăng nhập
+                                </Link>
+                                <Link to="/auth/register" className="flex-1 rounded-xl border border-surface-variant px-5 py-3 text-center text-sm font-bold text-on-surface-variant hover:bg-surface-container-lowest">
+                                    Đăng ký
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 </div>
 
