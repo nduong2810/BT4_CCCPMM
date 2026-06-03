@@ -194,7 +194,8 @@ const HomePage = () => {
     const formatCategory = (cat) => {
         if (!cat) return "Đồng hồ cao cấp";
         if (cat === "Nam") return "Đồng hồ Nam";
-        if (cat === "Nu") return "Đồng hồ Nữ";
+        if (cat === "Nữ" || cat === "Nu") return "Đồng hồ Nữ";
+        if (cat === "Smartwatch") return "Smartwatch";
         return cat;
     };
 
@@ -281,7 +282,7 @@ const HomePage = () => {
                                         <span>Đồng hồ Nam</span>
                                     </label>
                                     <label className="flex items-center gap-3 cursor-pointer">
-                                        <input type="radio" name="category" value="Nu" onChange={handleFilterChange} checked={filters.category === 'Nu'} className="w-4 h-4 text-primary focus:ring-primary" />
+                                        <input type="radio" name="category" value="Nữ" onChange={handleFilterChange} checked={filters.category === 'Nữ'} className="w-4 h-4 text-primary focus:ring-primary" />
                                         <span>Đồng hồ Nữ</span>
                                     </label>
                                 </div>
@@ -337,6 +338,12 @@ const HomePage = () => {
                                     </Link>
                                 ))}
                             </div>
+
+                            {products.length === 0 && !loadingMore && (
+                                <div className="rounded-2xl border border-surface-variant bg-white p-10 text-center text-on-surface-variant">
+                                    Không tìm thấy sản phẩm phù hợp với bộ lọc hiện tại.
+                                </div>
+                            )}
 
                             <div className="mt-12 mb-8">
                                 {loadingMore && (
