@@ -1,4 +1,5 @@
-﻿import { Navigate, Route, Routes, Outlet, Link } from 'react-router-dom';
+﻿import { Navigate, Route, Routes, Outlet, Link, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
 import VerifyResetOTP from './components/auth/VerifyResetOTP';
@@ -14,6 +15,17 @@ import OrderHistoryPage from './pages/order/OrderHistoryPage';
 import HomePage from './pages/home/HomePage';
 import ProductDetailPage from './pages/product/ProductDetailPage';
 import './App.css';
+
+function RequireAuth({ children }) {
+    const { isAuthenticated } = useSelector((state) => state.login);
+    const location = useLocation();
+
+    if (!isAuthenticated) {
+        return <Navigate to="/auth/login" replace state={{ from: location.pathname }} />;
+    }
+
+    return children;
+}
 
 // Khung nền chỉ dùng cho các trang Đăng nhập / Profile
 function Shell() {
@@ -69,16 +81,16 @@ function Shell() {
 function App() {
     return (
         <Routes>
-            {/* 1. KHU VỰC TRANG BÁN HÀNG (Full màn hình, không dùng Shell) */}
+            {/* Khách chỉ được xem trang chủ, tìm kiếm và lọc sản phẩm trên trang chủ */}
             <Route path="/" element={<HomePage />} />
-            <Route path="/product/:id" element={<ProductDetailPage />} />
 
-            {/* Giỏ hàng, thanh toán và lịch sử đơn hàng */}
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/orders" element={<OrderHistoryPage />} />
+            {/* Các trang mua hàng/yêu cầu tài khoản */}
+            <Route path="/product/:id" element={<RequireAuth><ProductDetailPage /></RequireAuth>} />
+            <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
+            <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+            <Route path="/orders" element={<RequireAuth><OrderHistoryPage /></RequireAuth>} />
 
-            {/* 2. KHU VỰC TÀI KHOẢN (Bọc trong khung Shell) */}
+            {/* KHU VỰC TÀI KHOẢN */}
             <Route element={<Shell />}>
                 <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
                 <Route path="/auth/login" element={<LoginPage />} />
@@ -87,12 +99,10 @@ function App() {
                 <Route path="/auth/verify-reset-otp" element={<VerifyResetOTP />} />
                 <Route path="/auth/reset-password" element={<ResetPassword />} />
 
-                {/* Profile */}
-                <Route path="/user/profile" element={<ProfilePage />} />
-                <Route path="/admin/profile" element={<AdminProfilePage />} />
+                <Route path="/user/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+                <Route path="/admin/profile" element={<RequireAuth><AdminProfilePage /></RequireAuth>} />
             </Route>
 
-            {/* 3. Bắt lỗi Route không tồn tại */}
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
