@@ -52,7 +52,16 @@ export const getProducts = async (req, res) => {
 
 export const getProductById = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
+        const shouldIncreaseView = req.query.skipView !== 'true';
+
+        const product = shouldIncreaseView
+            ? await Product.findByIdAndUpdate(
+                req.params.id,
+                { $inc: { views: 1 } },
+                { new: true, runValidators: true }
+            )
+            : await Product.findById(req.params.id);
+
         if (!product) return res.status(404).json({ message: "Không tìm thấy" });
         return res.status(200).json(product);
     } catch (error) {
