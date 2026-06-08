@@ -13,6 +13,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { addToCart } from '../../store/slices/cartSlice';
 import { getProductImageUrl, PLACEHOLDER_IMAGE } from '../../utils/imageUrl';
 
+const VIEW_TRACK_TTL = 3000;
+
 const ProductDetailPage = () => {
     const { id } = useParams();
     const [product, setProduct] = useState(null);
@@ -27,9 +29,28 @@ const ProductDetailPage = () => {
 
     const stock = useMemo(() => Number(product?.stock ?? product?.countInStock ?? 0), [product]);
 
-    const loadProduct = useCallback(async () => {
+    const shouldTrackView = useCallback(() => {
+        const key = `product-view-tracked-${id}`;
+        const now = Date.now();
+        const lastTrackedAt = Number(sessionStorage.getItem(key) || 0);
+
+        if (now - lastTrackedAt < VIEW_TRACK_TTL) {
+            return false;
+        }
+
+        sessionStorage.setItem(key, String(now));
+        return true;
+    }, [id]);
+
+    const loadProduct = useCallback(async ({ trackView = false } = {}) => {
         try {
-            const res = await apiClient.get(`/products/${id}?t=${Date.now()}`);
+            const increaseView = trackView && shouldTrackView();
+            const params = new URLSearchParams({
+                t: String(Date.now()),
+                skipView: increaseView ? 'false' : 'true'
+            });
+
+            const res = await apiClient.get(`/products/${id}?${params.toString()}`);
             setProduct(res.data);
             setLastUpdated(new Date());
             setQuantity(q => Math.min(Math.max(q, 1), Number(res.data?.stock ?? res.data?.countInStock ?? 0) || 1));
@@ -39,23 +60,23 @@ const ProductDetailPage = () => {
         } catch (err) {
             console.error(err);
         }
-    }, [id]);
+    }, [id, shouldTrackView]);
 
     useEffect(() => {
         window.scrollTo(0, 0);
-        loadProduct();
+        loadProduct({ trackView: true });
     }, [loadProduct]);
 
     useEffect(() => {
         const refreshWhenVisible = () => {
             if (document.visibilityState === 'visible') {
-                loadProduct();
+                loadProduct({ trackView: false });
             }
         };
 
         const intervalId = window.setInterval(() => {
             if (document.visibilityState === 'visible') {
-                loadProduct();
+                loadProduct({ trackView: false });
             }
         }, 10000);
 
@@ -91,7 +112,7 @@ const ProductDetailPage = () => {
             .unwrap()
             .then(() => {
                 alert("Đã thêm sản phẩm vào giỏ hàng thành công!");
-                loadProduct();
+                loadProduct({ trackView: false });
             })
             .catch((error) => {
                 alert("Lỗi khi thêm vào giỏ hàng: " + (error?.message || "Vui lòng đăng nhập"));
